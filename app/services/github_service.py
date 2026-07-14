@@ -1,4 +1,3 @@
-# GitHub Repository Search API 호출.
 import requests
 from fastapi import HTTPException
 
