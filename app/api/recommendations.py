@@ -1,4 +1,4 @@
-# 실제 API 주소 만들기. 
+# 실제 API 주소 만들기.
 from fastapi import APIRouter
 
 from app.schemas.recommendation import RecommendationRequest, RecommendationResponse
