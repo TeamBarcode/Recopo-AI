@@ -1,4 +1,4 @@
-#request와 response 형식 정의.
+#request와 response 형식 정의
 from typing import Optional
 
 from pydantic import BaseModel, Field
