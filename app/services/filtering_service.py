@@ -1,4 +1,4 @@
-# 추천하기 애매한 레포 제거.
+# 추천하기 애매한 레포 제거
 def filter_repositories(repositories: list[dict], min_stars: int = 5) -> list[dict]:
  
     filtered = []
