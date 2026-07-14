@@ -1,4 +1,4 @@
-#한글 입력을 GitHub 검색용 영어 키워드로 변환.
+#한글 입력을 GitHub 검색용 영어 키워드로 변환
 from app.utils.text_utils import combine_title_content
 
 
