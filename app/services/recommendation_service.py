@@ -1,4 +1,4 @@
-#하나의 추천 흐름으로 연결.
+#하나의 추천 흐름으로 연결
 from app.schemas.recommendation import (
     RecommendationRequest,
     RecommendationResponse,
