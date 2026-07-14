@@ -1,3 +1,4 @@
+#.env 값을 코드에서 쓸 수 있게 불러오는 파일
 import os
 from dotenv import load_dotenv
 
