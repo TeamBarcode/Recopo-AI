@@ -1,4 +1,4 @@
-# 후보 레포마다 점수 계산 + 추천 이유 생성.
+# 후보 레포마다 점수 계산 + 추천 이유 생성
 import math
 from datetime import datetime, timezone
 
