@@ -1,6 +1,34 @@
 # 추천하기 애매한 레포 제거
-def filter_repositories(repositories: list[dict], min_stars: int = 5) -> list[dict]:
- 
+from app.core.config import settings
+
+
+def deduplicate_repositories(repositories: list[dict]) -> list[dict]:
+
+    seen_repository_ids = set()
+    unique_repositories = []
+
+    for repo in repositories:
+        repository_id = repo.get("repositoryId")
+
+        if not repository_id:
+            continue
+
+        if repository_id in seen_repository_ids:
+            continue
+
+        seen_repository_ids.add(repository_id)
+        unique_repositories.append(repo)
+
+    return unique_repositories
+
+
+def filter_repositories(
+    repositories: list[dict],
+    min_stars: int | None = None,
+) -> list[dict]:
+
+    min_stars = settings.MIN_REPOSITORY_STARS if min_stars is None else min_stars
+
     filtered = []
 
     for repo in repositories:
@@ -21,7 +49,6 @@ def filter_repositories(repositories: list[dict], min_stars: int = 5) -> list[di
     if filtered:
         return filtered
 
-    # 조건이 너무 엄격해서 결과가 없으면 stars 조건만 완화한다.
     relaxed = []
 
     for repo in repositories:
