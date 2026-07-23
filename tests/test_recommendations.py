@@ -66,6 +66,37 @@ def test_recommendation_api_success(monkeypatch):
     assert data["message"] == "추천 레포지토리를 찾았습니다."
 
 
+def test_recommendation_api_empty_result(monkeypatch):
+    def fake_get_repository_recommendation(request):
+        return RecommendationResponse(
+            cardId=request.cardId,
+            recommendation=None,
+            message="조건에 맞는 추천 레포지토리를 찾지 못했습니다.",
+        )
+
+    monkeypatch.setattr(
+        recommendations_api,
+        "get_repository_recommendation",
+        fake_get_repository_recommendation,
+    )
+
+    response = client.post(
+        "/api/recommendations",
+        json={
+            "cardId": 15,
+            "title": "희귀한 프로젝트",
+            "content": "검색 결과가 없다고 가정하는 테스트입니다.",
+        },
+    )
+
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["cardId"] == 15
+    assert data["recommendation"] is None
+    assert data["message"] == "조건에 맞는 추천 레포지토리를 찾지 못했습니다."
+
+
 def test_recommendation_api_validation_error():
     response = client.post(
         "/api/recommendations",
