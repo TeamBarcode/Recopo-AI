@@ -1,3 +1,5 @@
+import base64
+
 import requests
 from fastapi import HTTPException
 
@@ -33,6 +35,7 @@ def _normalize_repository(repo: dict) -> dict:
         "archived": repo.get("archived") or False,
         "fork": repo.get("fork") or False,
         "openIssues": repo.get("open_issues_count") or 0,
+        "readme": "",
     }
 
 
@@ -72,3 +75,38 @@ def search_repositories(query: str, per_page: int = 30) -> list[dict]:
             status_code=500,
             detail=f"GitHub API 처리 중 서버 오류가 발생했습니다: {str(error)}",
         )
+
+
+def get_repository_readme(full_name: str) -> str:
+
+    if not full_name:
+        return ""
+
+    url = f"{settings.GITHUB_API_URL.rstrip('/')}/repos/{full_name}/readme"
+
+    try:
+        response = requests.get(
+            url,
+            headers=_build_headers(),
+            timeout=settings.GITHUB_TIMEOUT,
+        )
+
+        if response.status_code == 404:
+            return ""
+
+        if response.status_code >= 400:
+            return ""
+
+        data = response.json()
+        content = data.get("content") or ""
+        encoding = data.get("encoding") or ""
+
+        if encoding != "base64" or not content:
+            return ""
+
+        decoded = base64.b64decode(content).decode("utf-8", errors="ignore")
+
+        return decoded[: settings.GITHUB_README_MAX_CHARS]
+
+    except Exception:
+        return ""
