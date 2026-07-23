@@ -1,4 +1,12 @@
 # 후보 레포마다 점수 계산 + 추천 이유 생성
+"""
+    점수 구성:
+    - 메타데이터 관련성: 35점
+    - README 관련성: 25점
+    - 품질: 15점
+    - 최신성: 15점
+    - 기술스택: 10점
+"""
 import math
 from datetime import datetime, timezone
 
@@ -18,10 +26,13 @@ PREFERRED_TECH_KEYWORDS = {
     "tensorflow",
     "pytorch",
     "machine-learning",
+    "deep-learning",
     "computer-vision",
     "pose-estimation",
     "human-pose-estimation",
     "posture-correction",
+    "webcam",
+    "real-time",
 }
 
 
@@ -29,7 +40,7 @@ def _safe_lower(value: str | None) -> str:
     return value.lower() if value else ""
 
 
-def _get_searchable_text(repo: dict) -> str:
+def _get_metadata_text(repo: dict) -> str:
 
     name = repo.get("name") or ""
     description = repo.get("description") or ""
@@ -39,22 +50,39 @@ def _get_searchable_text(repo: dict) -> str:
     return f"{name} {description} {language} {topics}".lower()
 
 
-def _calculate_relevance_score(repo: dict, keywords: list[str]) -> tuple[float, list[str]]:
+def _get_readme_text(repo: dict) -> str:
 
-    if not keywords:
+    return (repo.get("readme") or "").lower()
+
+
+def _get_matched_keywords(keywords: list[str], text: str) -> list[str]:
+
+    matched_keywords = []
+
+    for keyword in keywords:
+        keyword_lower = keyword.lower()
+
+        if keyword_lower in text and keyword_lower not in matched_keywords:
+            matched_keywords.append(keyword_lower)
+
+    return matched_keywords
+
+
+def _calculate_text_relevance_score(
+    keywords: list[str],
+    text: str,
+    max_score: float,
+) -> tuple[float, list[str]]:
+
+    if not keywords or not text:
         return 0.0, []
 
-    searchable_text = _get_searchable_text(repo)
+    matched_keywords = _get_matched_keywords(keywords, text)
 
-    matched_keywords = [
-        keyword for keyword in keywords
-        if keyword.lower() in searchable_text
-    ]
+    score = (len(matched_keywords) / len(keywords)) * max_score
+    score = min(score, max_score)
 
-    relevance_score = (len(matched_keywords) / len(keywords)) * 55
-    relevance_score = min(relevance_score, 55)
-
-    return relevance_score, matched_keywords
+    return score, matched_keywords
 
 
 def _calculate_quality_score(repo: dict) -> float:
@@ -84,13 +112,15 @@ def _calculate_recency_score(repo: dict) -> float:
     age_days = (now - updated_datetime).days
 
     if age_days <= 180:
-        return 20.0
-    if age_days <= 365:
         return 15.0
-    if age_days <= 730:
-        return 8.0
 
-    return 3.0
+    if age_days <= 365:
+        return 11.0
+
+    if age_days <= 730:
+        return 6.0
+
+    return 2.0
 
 
 def _calculate_tech_score(repo: dict) -> float:
@@ -108,48 +138,80 @@ def _calculate_tech_score(repo: dict) -> float:
     return min(len(matched) * 2.5, 10)
 
 
-def _generate_reason(repo: dict, matched_keywords: list[str]) -> str:
+def score_repository(
+    repo: dict,
+    keywords: list[str],
+    use_readme: bool = True,
+) -> dict:
 
-    name = repo.get("name", "해당 레포")
-    language = repo.get("language") or "주요 언어 정보 없음"
-    stars = repo.get("stars", 0)
+    metadata_text = _get_metadata_text(repo)
+    readme_text = _get_readme_text(repo)
 
-    if matched_keywords:
-        keyword_text = ", ".join(matched_keywords[:4])
-        return (
-            f"{name}는 입력된 아이디어와 관련된 키워드({keyword_text})가 "
-            f"레포 이름, 설명 또는 topics와 매칭되어 추천합니다. "
-            f"{language} 기반이며 star {stars}개를 보유해 참고하기 좋습니다."
-        )
-
-    return (
-        f"{name}는 입력된 아이디어와 유사한 기능을 구현한 레포지토리로 판단됩니다. "
-        f"{language} 기반이며 star {stars}개를 보유해 참고할 만합니다."
+    metadata_score, metadata_matches = _calculate_text_relevance_score(
+        keywords=keywords,
+        text=metadata_text,
+        max_score=35,
     )
 
+    readme_score = 0.0
+    readme_matches: list[str] = []
 
-def score_repository(repo: dict, keywords: list[str]) -> dict:
+    if use_readme:
+        readme_score, readme_matches = _calculate_text_relevance_score(
+            keywords=keywords,
+            text=readme_text,
+            max_score=25,
+        )
 
-    relevance_score, matched_keywords = _calculate_relevance_score(repo, keywords)
     quality_score = _calculate_quality_score(repo)
     recency_score = _calculate_recency_score(repo)
     tech_score = _calculate_tech_score(repo)
 
-    total_score = relevance_score + quality_score + recency_score + tech_score
-    total_score = round(min(total_score, 100), 2)
+    total_score = (
+        metadata_score
+        + readme_score
+        + quality_score
+        + recency_score
+        + tech_score
+    )
+
+    matched_keywords = []
+
+    for keyword in metadata_matches + readme_matches:
+        if keyword not in matched_keywords:
+            matched_keywords.append(keyword)
+
+    matched_fields = []
+
+    if metadata_matches:
+        matched_fields.append("metadata")
+
+    if readme_matches:
+        matched_fields.append("readme")
 
     scored_repo = repo.copy()
-    scored_repo["score"] = total_score
-    scored_repo["reason"] = _generate_reason(repo, matched_keywords)
+    scored_repo["score"] = round(min(total_score, 100), 2)
     scored_repo["matchedKeywords"] = matched_keywords
+    scored_repo["matchedFields"] = matched_fields
+    scored_repo["scoreDetails"] = {
+        "metadataScore": round(metadata_score, 2),
+        "readmeScore": round(readme_score, 2),
+        "qualityScore": round(quality_score, 2),
+        "recencyScore": round(recency_score, 2),
+        "techScore": round(tech_score, 2),
+    }
 
     return scored_repo
 
 
-def rank_repositories(repositories: list[dict], keywords: list[str]) -> list[dict]:
+def rank_repositories(
+    repositories: list[dict],
+    keywords: list[str],
+    use_readme: bool = True,
+) -> list[dict]:
 
     scored_repositories = [
-        score_repository(repo, keywords)
+        score_repository(repo, keywords, use_readme=use_readme)
         for repo in repositories
     ]
 
