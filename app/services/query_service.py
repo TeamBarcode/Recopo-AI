@@ -5,6 +5,8 @@ from app.utils.text_utils import combine_title_content
 KEYWORD_MAP = {
     "ai": ["ai", "machine-learning"],
     "인공지능": ["ai", "machine-learning"],
+    "머신러닝": ["machine-learning"],
+    "딥러닝": ["deep-learning"],
     "추천": ["recommendation", "recommender-system"],
     "영화": ["movie"],
     "음악": ["music"],
@@ -37,11 +39,18 @@ KEYWORD_MAP = {
     "사진": ["image"],
     "음성": ["speech", "audio"],
     "번역": ["translation"],
+    "opencv": ["opencv"],
+    "mediapipe": ["mediapipe"],
+    "미디어파이프": ["mediapipe"],
+    "파이썬": ["python"],
+    "리액트": ["react"],
+    "스프링": ["spring"],
+    "fastapi": ["fastapi"],
 }
 
 
 def extract_keywords(title: str, content: str) -> list[str]:
-  
+
     text = combine_title_content(title, content)
     text_lower = text.lower()
 
@@ -54,8 +63,10 @@ def extract_keywords(title: str, content: str) -> list[str]:
     unique_keywords: list[str] = []
 
     for keyword in keywords:
-        if keyword not in unique_keywords:
-            unique_keywords.append(keyword)
+        normalized_keyword = keyword.strip().lower()
+
+        if normalized_keyword and normalized_keyword not in unique_keywords:
+            unique_keywords.append(normalized_keyword)
 
     if not unique_keywords:
         return ["web", "app", "project"]
@@ -63,10 +74,28 @@ def extract_keywords(title: str, content: str) -> list[str]:
     return unique_keywords
 
 
-def create_search_query(title: str, content: str) -> str:
+def create_search_queries(title: str, content: str) -> list[str]:
 
     keywords = extract_keywords(title, content)
 
-    base_query = " ".join(keywords[:10])
+    main_keywords = keywords[:10]
+    core_keywords = keywords[:6]
 
-    return f"{base_query} in:name,description,readme"
+    queries = [
+        f"{' '.join(main_keywords)} in:name,description,readme",
+        f"{' '.join(core_keywords)} in:name,description",
+        f"{' '.join(core_keywords)} stars:>10",
+    ]
+
+    unique_queries: list[str] = []
+
+    for query in queries:
+        if query not in unique_queries:
+            unique_queries.append(query)
+
+    return unique_queries
+
+
+def create_search_query(title: str, content: str) -> str:
+
+    return create_search_queries(title, content)[0]
