@@ -21,4 +21,8 @@ def health_check() -> dict:
     return {"status": "ok"}
 
 
-app.include_router(recommendations_router)
+app.include_router(
+    recommendations_router,
+    prefix="/api/recommendations",
+    tags=["Recommendations"],
+)

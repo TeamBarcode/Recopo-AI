@@ -5,10 +5,9 @@ from app.schemas.recommendation import RecommendationRequest, RecommendationResp
 from app.services.recommendation_service import get_repository_recommendation
 
 
-router = APIRouter(prefix="/api", tags=["recommendations"])
+router = APIRouter()
 
 
-@router.post("/recommendations", response_model=RecommendationResponse)
+@router.post("", response_model=RecommendationResponse)
 def recommend_repository(request: RecommendationRequest) -> RecommendationResponse:
-
     return get_repository_recommendation(request)

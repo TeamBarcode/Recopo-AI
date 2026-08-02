@@ -5,9 +5,10 @@ from pydantic import BaseModel, Field
 
 
 class RecommendationRequest(BaseModel):
-    cardId: int = Field(..., ge=1, description="카드 ID")
-    title: str = Field(..., min_length=1, max_length=100, description="프로젝트 제목")
-    content: str = Field(..., min_length=1, max_length=1000, description="프로젝트 설명")
+    cardId: int
+    title: str = Field(..., min_length=1)
+    content: str = Field(..., min_length=1)
+    excludedRepositoryIds: list[int] = Field(default_factory=list)
 
 
 class RepositoryRecommendation(BaseModel):

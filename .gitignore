@@ -26,3 +26,7 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+
+# RAG data
+data/repositories.json
+data/vector_store/

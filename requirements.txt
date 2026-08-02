@@ -5,3 +5,7 @@ pydantic
 requests
 pytest
 httpx
+numpy
+sentence-transformers
+chromadb
+
