@@ -33,10 +33,8 @@ def test_recommendation_api_success(monkeypatch):
                 stars=850,
                 forks=120,
                 updatedAt="2026-06-20T12:30:00Z",
-                score=87.5,
                 reason="입력된 아이디어와 유사한 레포지토리입니다.",
-            ),
-            message="추천 레포지토리를 찾았습니다.",
+            )
         )
 
     monkeypatch.setattr(
@@ -62,8 +60,7 @@ def test_recommendation_api_success(monkeypatch):
     assert data["recommendation"]["repositoryId"] == 123456
     assert data["recommendation"]["name"] == "pose-estimation-web"
     assert data["recommendation"]["url"] == "https://github.com/owner/pose-estimation-web"
-    assert data["recommendation"]["score"] == 87.5
-    assert data["message"] == "추천 레포지토리를 찾았습니다."
+
 
 
 def test_recommendation_api_empty_result(monkeypatch):
@@ -71,7 +68,6 @@ def test_recommendation_api_empty_result(monkeypatch):
         return RecommendationResponse(
             cardId=request.cardId,
             recommendation=None,
-            message="조건에 맞는 추천 레포지토리를 찾지 못했습니다.",
         )
 
     monkeypatch.setattr(
@@ -94,8 +90,7 @@ def test_recommendation_api_empty_result(monkeypatch):
     assert response.status_code == 200
     assert data["cardId"] == 15
     assert data["recommendation"] is None
-    assert data["message"] == "조건에 맞는 추천 레포지토리를 찾지 못했습니다."
-
+    
 
 def test_recommendation_api_validation_error():
     response = client.post(

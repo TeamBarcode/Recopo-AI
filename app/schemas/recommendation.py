@@ -1,6 +1,3 @@
-#request와 response 형식 정의
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -16,17 +13,15 @@ class RepositoryRecommendation(BaseModel):
     name: str
     fullName: str
     url: str
-    description: Optional[str] = None
-    language: Optional[str] = None
+    description: str | None = None
+    language: str | None = None
     techStack: list[str] = Field(default_factory=list)
     stars: int
     forks: int
     updatedAt: str
-    score: float
     reason: str
 
 
 class RecommendationResponse(BaseModel):
     cardId: int
-    recommendation: Optional[RepositoryRecommendation] = None
-    
+    recommendation: RepositoryRecommendation | None

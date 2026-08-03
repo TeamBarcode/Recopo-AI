@@ -110,7 +110,7 @@ def _attach_readme_to_repositories(repositories: list[dict]) -> list[dict]:
 def _to_repository_recommendation(repo: dict) -> RepositoryRecommendation:
     """
     내부 dict 형태의 repo를 API response schema로 변환한다.
-    BE에 보내는 형식은 기존과 동일하게 유지한다.
+    BE에 보내는 응답에서는 score, ragScore, similarity 같은 내부 점수는 제외한다.
     """
     return RepositoryRecommendation(
         repositoryId=repo.get("repositoryId", 0),
@@ -123,9 +123,27 @@ def _to_repository_recommendation(repo: dict) -> RepositoryRecommendation:
         stars=repo.get("stars", 0),
         forks=repo.get("forks", 0),
         updatedAt=repo.get("updatedAt", ""),
-        score=repo.get("score", 0.0),
         reason=repo.get("reason", "입력된 아이디어와 유사한 레포지토리입니다."),
     )
+
+
+def _exclude_repositories(
+    repositories: list[dict],
+    excluded_repository_ids: list[int],
+) -> list[dict]:
+    """
+    이미 추천된 repositoryId를 추천 후보에서 제외한다.
+    """
+    if not excluded_repository_ids:
+        return repositories
+
+    excluded_ids = set(excluded_repository_ids)
+
+    return [
+        repo
+        for repo in repositories
+        if repo.get("repositoryId") not in excluded_ids
+    ]
 
 
 def _get_fallback_recommendations(
@@ -188,8 +206,8 @@ def get_repository_recommendation(
     keywords = extract_keywords(request.title, request.content)
 
     rag_ranked_repositories = recommend_repositories_with_rag(
-    title=request.title,
-    content=request.content,
+        title=request.title,
+        content=request.content,
     )
 
     rag_ranked_repositories = _exclude_repositories(
@@ -221,6 +239,8 @@ def get_repository_recommendation(
     best_repository["reason"] = generate_recommendation_reason(
         repo=best_repository,
         keywords=keywords,
+        title=request.title,
+        content=request.content,
     )
 
     recommendation = _to_repository_recommendation(best_repository)
@@ -229,21 +249,3 @@ def get_repository_recommendation(
         cardId=request.cardId,
         recommendation=recommendation,
     )
-
-def _exclude_repositories(
-    repositories: list[dict],
-    excluded_repository_ids: list[int],
-) -> list[dict]:
-    """
-    이미 추천된 repositoryId를 추천 후보에서 제외한다.
-    """
-    if not excluded_repository_ids:
-        return repositories
-
-    excluded_ids = set(excluded_repository_ids)
-
-    return [
-        repo
-        for repo in repositories
-        if repo.get("repositoryId") not in excluded_ids
-    ]
