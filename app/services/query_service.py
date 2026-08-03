@@ -99,3 +99,12 @@ def create_search_queries(title: str, content: str) -> list[str]:
 def create_search_query(title: str, content: str) -> str:
 
     return create_search_queries(title, content)[0]
+
+def expand_query_with_keywords(title: str, content: str) -> str:
+    text = combine_title_content(title, content)
+    keywords = extract_keywords(title, content)
+
+    if not keywords:
+        return text
+
+    return f"{text} {' '.join(keywords)}"
