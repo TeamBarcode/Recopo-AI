@@ -29,4 +29,4 @@ class RepositoryRecommendation(BaseModel):
 class RecommendationResponse(BaseModel):
     cardId: int
     recommendation: Optional[RepositoryRecommendation] = None
-    message: str
+    

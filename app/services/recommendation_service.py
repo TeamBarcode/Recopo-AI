@@ -214,7 +214,6 @@ def get_repository_recommendation(
             return RecommendationResponse(
                 cardId=request.cardId,
                 recommendation=None,
-                message="조건에 맞는 추천 레포지토리를 찾지 못했습니다.",
             )
 
         best_repository = fallback_repositories[0]
@@ -229,7 +228,6 @@ def get_repository_recommendation(
     return RecommendationResponse(
         cardId=request.cardId,
         recommendation=recommendation,
-        message="추천 레포지토리를 찾았습니다.",
     )
 
 def _exclude_repositories(
