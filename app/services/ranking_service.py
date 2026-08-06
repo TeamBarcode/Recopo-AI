@@ -1,12 +1,3 @@
-# 후보 레포마다 점수 계산 + 추천 이유 생성
-"""
-    점수 구성:
-    - 메타데이터 관련성: 35점
-    - README 관련성: 25점
-    - 품질: 15점
-    - 최신성: 15점
-    - 기술스택: 10점
-"""
 import math
 from datetime import datetime, timezone
 
