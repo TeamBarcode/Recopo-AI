@@ -1,4 +1,3 @@
-# 추천하기 애매한 레포 제거
 from app.core.config import settings
 
 

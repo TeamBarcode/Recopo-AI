@@ -42,10 +42,7 @@ def _format_topics(topics: list[str], max_count: int = 4) -> str:
 
 
 def _get_retrieved_text(repo: dict, max_chunks: int = 2) -> str:
-    """
-    README 검색 결과 텍스트를 내부 판단용으로만 합친다.
-    사용자에게 원문 그대로 보여주지는 않는다.
-    """
+
     retrieved_chunks = repo.get("retrievedChunks") or []
 
     texts = []
@@ -58,10 +55,7 @@ def _get_retrieved_text(repo: dict, max_chunks: int = 2) -> str:
 
 
 def _extract_feature_keywords(repo: dict, max_count: int = 4) -> list[str]:
-    """
-    description, topics, README 검색 내용에서 기능 키워드를 뽑아
-    사용자에게 보여줄 한국어 표현으로 변환한다.
-    """
+
     description = repo.get("description") or ""
     topics = " ".join(repo.get("topics") or [])
     readme_text = _get_retrieved_text(repo)
@@ -163,10 +157,7 @@ def generate_recommendation_reason(
     title: str = "",
     content: str = "",
 ) -> str:
-    """
-    추천 이유를 rule-based 방식으로 생성한다.
-    내부 점수, 유사도, star, fork는 사용자에게 노출하지 않는다.
-    """
+
     reason_parts = [
         _build_intro_reason(repo),
         _build_feature_reason(repo),

@@ -5,17 +5,12 @@ from app.services.embedding_service import embed_text, embed_texts
 
 
 def get_chroma_client():
-    """
-    로컬 디스크에 저장되는 ChromaDB client를 생성한다.
-    """
+
     return chromadb.PersistentClient(path=settings.CHROMA_DB_DIR)
 
 
 def get_collection():
-    """
-    README chunk 저장용 collection을 가져온다.
-    없으면 새로 생성한다.
-    """
+
     client = get_chroma_client()
 
     return client.get_or_create_collection(
@@ -25,10 +20,7 @@ def get_collection():
 
 
 def reset_collection() -> None:
-    """
-    기존 collection을 삭제하고 새 collection을 만든다.
-    build_vector_store.py 실행 시 중복 저장을 막기 위해 사용한다.
-    """
+
     client = get_chroma_client()
 
     try:
@@ -43,16 +35,12 @@ def reset_collection() -> None:
 
 
 def _topics_to_string(topics: list[str]) -> str:
-    """
-    ChromaDB metadata에는 list 대신 문자열로 topics를 저장한다.
-    """
+
     return ",".join(topics or [])
 
 
 def _string_to_topics(topics: str) -> list[str]:
-    """
-    문자열로 저장된 topics를 다시 list로 변환한다.
-    """
+
     if not topics:
         return []
 
@@ -60,9 +48,7 @@ def _string_to_topics(topics: str) -> list[str]:
 
 
 def add_chunks_to_vector_store(chunks: list[dict]) -> int:
-    """
-    README chunk들을 embedding으로 변환한 뒤 ChromaDB에 저장한다.
-    """
+
     if not chunks:
         return 0
 
@@ -113,9 +99,7 @@ def add_chunks_to_vector_store(chunks: list[dict]) -> int:
 
 
 def search_similar_chunks(query: str, top_k: int | None = None) -> list[dict]:
-    """
-    사용자 입력과 의미적으로 유사한 README chunk를 Vector DB에서 검색한다.
-    """
+
     top_k = settings.RAG_TOP_K_CHUNKS if top_k is None else top_k
 
     collection = get_collection()

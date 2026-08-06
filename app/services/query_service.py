@@ -1,110 +1,66 @@
-#한글 입력을 GitHub 검색용 영어 키워드로 변환
-from app.utils.text_utils import combine_title_content
+from dataclasses import dataclass
+
+from app.core.config import settings
+from app.services.translation_service import (
+    TranslationError,
+    TranslationService,
+)
 
 
-KEYWORD_MAP = {
-    "ai": ["ai", "machine-learning"],
-    "인공지능": ["ai", "machine-learning"],
-    "머신러닝": ["machine-learning"],
-    "딥러닝": ["deep-learning"],
-    "추천": ["recommendation", "recommender-system"],
-    "영화": ["movie"],
-    "음악": ["music"],
-    "맛집": ["restaurant"],
-    "음식": ["food"],
-    "일정": ["schedule", "calendar"],
-    "할일": ["todo", "task-management"],
-    "투두": ["todo", "task-management"],
-    "채팅": ["chat", "chatbot"],
-    "챗봇": ["chatbot"],
-    "운동": ["fitness", "exercise"],
-    "자세": ["pose-estimation", "posture", "human-pose-estimation"],
-    "교정": ["posture-correction", "correction"],
-    "웹캠": ["webcam", "camera"],
-    "카메라": ["camera", "computer-vision"],
-    "분석": ["analysis", "computer-vision"],
-    "실시간": ["real-time"],
-    "웹서비스": ["web-app"],
-    "웹": ["web"],
-    "앱": ["app"],
-    "서비스": ["app"],
-    "로그인": ["login", "authentication"],
-    "게시판": ["board", "community"],
-    "커뮤니티": ["community"],
-    "쇼핑": ["shopping", "ecommerce"],
-    "결제": ["payment"],
-    "지도": ["map"],
-    "위치": ["location"],
-    "이미지": ["image", "computer-vision"],
-    "사진": ["image"],
-    "음성": ["speech", "audio"],
-    "번역": ["translation"],
-    "opencv": ["opencv"],
-    "mediapipe": ["mediapipe"],
-    "미디어파이프": ["mediapipe"],
-    "파이썬": ["python"],
-    "리액트": ["react"],
-    "스프링": ["spring"],
-    "fastapi": ["fastapi"],
-}
+@dataclass(frozen=True)
+class SearchQueryResult:
+    original_query: str
+    search_query: str
+    translated: bool
 
 
-def extract_keywords(title: str, content: str) -> list[str]:
+class QueryService:
+    def __init__(
+        self,
+        translation_service: TranslationService,
+    ) -> None:
+        self.translation_service = translation_service
 
-    text = combine_title_content(title, content)
-    text_lower = text.lower()
+    def build_search_query(
+        self,
+        title: str,
+        content: str,
+    ) -> SearchQueryResult:
+        original_query = " ".join(
+            f"{title} {content}".split()
+        )
 
-    keywords: list[str] = []
+        if not original_query:
+            raise ValueError("검색어가 비어 있습니다.")
 
-    for source_word, english_terms in KEYWORD_MAP.items():
-        if source_word.lower() in text_lower:
-            keywords.extend(english_terms)
+        try:
+            translated_query = (
+                self.translation_service.translate_to_english(
+                    original_query
+                )
+            )
 
-    unique_keywords: list[str] = []
+            return SearchQueryResult(
+                original_query=original_query,
+                search_query=translated_query,
+                translated=translated_query != original_query,
+            )
 
-    for keyword in keywords:
-        normalized_keyword = keyword.strip().lower()
-
-        if normalized_keyword and normalized_keyword not in unique_keywords:
-            unique_keywords.append(normalized_keyword)
-
-    if not unique_keywords:
-        return ["web", "app", "project"]
-
-    return unique_keywords
-
-
-def create_search_queries(title: str, content: str) -> list[str]:
-
-    keywords = extract_keywords(title, content)
-
-    main_keywords = keywords[:10]
-    core_keywords = keywords[:6]
-
-    queries = [
-        f"{' '.join(main_keywords)} in:name,description,readme",
-        f"{' '.join(core_keywords)} in:name,description",
-        f"{' '.join(core_keywords)} stars:>10",
-    ]
-
-    unique_queries: list[str] = []
-
-    for query in queries:
-        if query not in unique_queries:
-            unique_queries.append(query)
-
-    return unique_queries
+        except TranslationError:
+            return SearchQueryResult(
+                original_query=original_query,
+                search_query=original_query,
+                translated=False,
+            )
 
 
-def create_search_query(title: str, content: str) -> str:
+translation_service = TranslationService(
+    api_key=settings.DEEPL_API_KEY,
+    api_url=settings.DEEPL_API_URL,
+    timeout_seconds=settings.TRANSLATION_TIMEOUT_SECONDS,
+    max_chars=settings.TRANSLATION_MAX_CHARS,
+)
 
-    return create_search_queries(title, content)[0]
-
-def expand_query_with_keywords(title: str, content: str) -> str:
-    text = combine_title_content(title, content)
-    keywords = extract_keywords(title, content)
-
-    if not keywords:
-        return text
-
-    return f"{text} {' '.join(keywords)}"
+query_service = QueryService(
+    translation_service=translation_service,
+)

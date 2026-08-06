@@ -1,4 +1,3 @@
-# main 파일
 from fastapi import FastAPI
 
 from app.api.recommendations import router as recommendations_router
