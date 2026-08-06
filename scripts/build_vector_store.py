@@ -14,9 +14,7 @@ from app.services.vector_store_service import (
 
 
 def load_repositories() -> list[dict]:
-    """
-    collect_repositories.py가 저장한 data/repositories.json을 읽는다.
-    """
+
     data_path = Path(settings.REPOSITORY_DATA_PATH)
 
     if not data_path.exists():
