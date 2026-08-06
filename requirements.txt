@@ -1,5 +1,11 @@
-fastapi 
-uvicorn 
-requests 
-python-dotenv 
-pydantic 
+fastapi
+uvicorn
+python-dotenv
+pydantic
+requests
+pytest
+httpx
+numpy
+sentence-transformers
+chromadb
+
