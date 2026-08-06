@@ -47,9 +47,7 @@ SEED_QUERIES = [
 
 
 def collect_repositories() -> list[dict]:
-    """
-    GitHub에서 seed query 기반으로 repository를 검색하고 README를 수집한다.
-    """
+
     repositories = []
 
     for query in SEED_QUERIES:
@@ -85,9 +83,7 @@ def collect_repositories() -> list[dict]:
 
 
 def save_repositories(repositories: list[dict]) -> None:
-    """
-    수집된 repository 정보를 data/repositories.json에 저장한다.
-    """
+
     output_path = Path(settings.REPOSITORY_DATA_PATH)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
