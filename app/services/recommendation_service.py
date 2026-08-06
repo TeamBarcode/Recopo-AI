@@ -1,3 +1,5 @@
+import re
+
 from app.core.config import settings
 from app.schemas.recommendation import (
     RecommendationRequest,
@@ -12,7 +14,7 @@ from app.services.github_service import (
     get_repository_readme,
     search_repositories,
 )
-from app.services.query_service import create_search_queries, extract_keywords
+from app.services.query_service import query_service
 from app.services.rag_service import recommend_repositories_with_rag
 from app.services.ranking_service import rank_repositories
 from app.services.reason_service import generate_recommendation_reason
@@ -50,11 +52,7 @@ def _format_topic(topic: str) -> str:
 
 
 def _build_tech_stack(repo: dict) -> list[str]:
-    """
-    language + topics를 기반으로 techStack을 만든다.
-    """
     tech_stack = []
-
     language = repo.get("language")
 
     if language:
@@ -72,46 +70,51 @@ def _build_tech_stack(repo: dict) -> list[str]:
     return tech_stack
 
 
-def _collect_repositories(search_queries: list[str]) -> list[dict]:
-    """
-    여러 검색 query로 GitHub API를 호출하고 후보 레포를 수집한다.
-    기존 final-pipeline fallback에서 사용한다.
-    """
-    repositories = []
+def _extract_search_terms(search_query: str) -> list[str]:
+    terms = re.findall(
+        r"[A-Za-z0-9가-힣][A-Za-z0-9가-힣.+#-]*",
+        search_query.lower(),
+    )
 
-    for query in search_queries:
-        search_result = search_repositories(
-            query=query,
-            per_page=settings.GITHUB_SEARCH_PER_PAGE,
-        )
-        repositories.extend(search_result)
+    return list(dict.fromkeys(terms))[:20]
+
+
+def _build_github_query(search_query: str) -> str:
+    return " ".join(search_query.split())[:256]
+
+
+def _collect_repositories(search_query: str) -> list[dict]:
+    github_query = _build_github_query(search_query)
+
+    repositories = search_repositories(
+        query=github_query,
+        per_page=settings.GITHUB_SEARCH_PER_PAGE,
+    )
 
     return deduplicate_repositories(repositories)
 
 
-def _attach_readme_to_repositories(repositories: list[dict]) -> list[dict]:
-    """
-    상위 후보 레포에 README 내용을 추가한다.
-    기존 final-pipeline fallback에서 사용한다.
-    """
+def _attach_readme_to_repositories(
+    repositories: list[dict],
+) -> list[dict]:
     enriched_repositories = []
 
     for repo in repositories:
         repo_with_readme = repo.copy()
         full_name = repo_with_readme.get("fullName") or ""
 
-        repo_with_readme["readme"] = get_repository_readme(full_name)
+        repo_with_readme["readme"] = get_repository_readme(
+            full_name
+        )
 
         enriched_repositories.append(repo_with_readme)
 
     return enriched_repositories
 
 
-def _to_repository_recommendation(repo: dict) -> RepositoryRecommendation:
-    """
-    내부 dict 형태의 repo를 API response schema로 변환한다.
-    BE에 보내는 응답에서는 score, ragScore, similarity 같은 내부 점수는 제외한다.
-    """
+def _to_repository_recommendation(
+    repo: dict,
+) -> RepositoryRecommendation:
     return RepositoryRecommendation(
         repositoryId=repo.get("repositoryId", 0),
         name=repo.get("name", ""),
@@ -123,7 +126,10 @@ def _to_repository_recommendation(repo: dict) -> RepositoryRecommendation:
         stars=repo.get("stars", 0),
         forks=repo.get("forks", 0),
         updatedAt=repo.get("updatedAt", ""),
-        reason=repo.get("reason", "입력된 아이디어와 유사한 레포지토리입니다."),
+        reason=repo.get(
+            "reason",
+            "입력된 아이디어와 유사한 레포지토리입니다.",
+        ),
     )
 
 
@@ -131,9 +137,6 @@ def _exclude_repositories(
     repositories: list[dict],
     excluded_repository_ids: list[int],
 ) -> list[dict]:
-    """
-    이미 추천된 repositoryId를 추천 후보에서 제외한다.
-    """
     if not excluded_repository_ids:
         return repositories
 
@@ -147,36 +150,24 @@ def _exclude_repositories(
 
 
 def _get_fallback_recommendations(
-    request: RecommendationRequest,
-    keywords: list[str],
+    search_query: str,
+    search_terms: list[str],
 ) -> list[dict]:
-    """
-    Vector DB가 비어 있거나 RAG 검색 결과가 없을 때
-    기존 final-pipeline 방식으로 추천을 수행한다.
-
-    기존 흐름:
-    GitHub API 검색
-    → 후보 수집
-    → 필터링
-    → metadata 기반 1차 랭킹
-    → README 조회
-    → README 포함 최종 랭킹
-    """
-    search_queries = create_search_queries(request.title, request.content)
-
-    repositories = _collect_repositories(search_queries)
+    repositories = _collect_repositories(search_query)
 
     if not repositories:
         return []
 
-    filtered_repositories = filter_repositories(repositories)
+    filtered_repositories = filter_repositories(
+        repositories
+    )
 
     if not filtered_repositories:
         return []
 
     metadata_ranked_repositories = rank_repositories(
         repositories=filtered_repositories,
-        keywords=keywords,
+        keywords=search_terms,
         use_readme=False,
     )
 
@@ -184,11 +175,13 @@ def _get_fallback_recommendations(
         : settings.GITHUB_README_CANDIDATE_LIMIT
     ]
 
-    enriched_repositories = _attach_readme_to_repositories(readme_target_repositories)
+    enriched_repositories = _attach_readme_to_repositories(
+        readme_target_repositories
+    )
 
     return rank_repositories(
         repositories=enriched_repositories,
-        keywords=keywords,
+        keywords=search_terms,
         use_readme=True,
     )
 
@@ -196,18 +189,17 @@ def _get_fallback_recommendations(
 def get_repository_recommendation(
     request: RecommendationRequest,
 ) -> RecommendationResponse:
-    """
-    사용자 입력을 받아 GitHub 레포지토리 1개를 추천한다.
-
-    우선순위:
-    1. Vector DB 기반 RAG 추천
-    2. RAG 결과가 없으면 기존 final-pipeline 방식 fallback
-    """
-    keywords = extract_keywords(request.title, request.content)
-
-    rag_ranked_repositories = recommend_repositories_with_rag(
+    query_result = query_service.build_search_query(
         title=request.title,
         content=request.content,
+    )
+
+
+    search_query = query_result.search_query
+    search_terms = _extract_search_terms(search_query)
+
+    rag_ranked_repositories = recommend_repositories_with_rag(
+        search_query=search_query,
     )
 
     rag_ranked_repositories = _exclude_repositories(
@@ -217,10 +209,11 @@ def get_repository_recommendation(
 
     if rag_ranked_repositories:
         best_repository = rag_ranked_repositories[0]
+
     else:
         fallback_repositories = _get_fallback_recommendations(
-            request=request,
-            keywords=keywords,
+            search_query=search_query,
+            search_terms=search_terms,
         )
 
         fallback_repositories = _exclude_repositories(
@@ -238,12 +231,14 @@ def get_repository_recommendation(
 
     best_repository["reason"] = generate_recommendation_reason(
         repo=best_repository,
-        keywords=keywords,
+        keywords=search_terms,
         title=request.title,
         content=request.content,
     )
 
-    recommendation = _to_repository_recommendation(best_repository)
+    recommendation = _to_repository_recommendation(
+        best_repository
+    )
 
     return RecommendationResponse(
         cardId=request.cardId,
